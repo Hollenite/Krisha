@@ -579,7 +579,7 @@ class TrafficControlEnvironment(Environment):
         return counts
 
     def _clamp(self, value: float, low: float = 0.0, high: float = 1.0) -> float:
-        _EPS = 1e-7
+        _EPS = 1e-3
         clamped = max(low, min(value, high))
         # Ensure scores are strictly within (0, 1) – never exactly 0.0 or 1.0
         if clamped <= 0.0:
