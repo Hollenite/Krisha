@@ -83,7 +83,7 @@ class TrafficControlEnvironment(Environment):
             episode_id=episode_id or str(uuid4()),
         )
         return self._build_observation(
-            reward=0.0,
+            reward=self._clamp(0.5),
             done=False,
             status_message=(
                 f"Loaded task '{self._task.name}'. "
@@ -197,7 +197,7 @@ class TrafficControlEnvironment(Environment):
             lane_queues=lane_queues,
             pending_spawns=pending_spawns,
             metrics=metrics,
-            final_score=None,
+            final_score=self._clamp(0.5),
             score_breakdown={},
         )
 
@@ -470,7 +470,7 @@ class TrafficControlEnvironment(Environment):
         emergency_total = self._total_scheduled_emergency_vehicles()
 
         throughput_score = self._clamp(
-            metrics.total_vehicles_passed / total_scheduled if total_scheduled else 0.99
+            metrics.total_vehicles_passed / total_scheduled if total_scheduled else 0.9
         )
 
         acceptable_average_wait = self._acceptable_average_wait()
@@ -480,7 +480,7 @@ class TrafficControlEnvironment(Environment):
 
         stability_score = self._compute_stability_score()
 
-        emergency_handling_score = 0.99
+        emergency_handling_score = self._clamp(0.9)
         if emergency_total > 0:
             emergency_pass_rate = self._count_emergency_passed() / emergency_total
             emergency_wait_quality = self._clamp(
@@ -490,7 +490,7 @@ class TrafficControlEnvironment(Environment):
                     / max(self._emergency_wait_budget() * emergency_total, 1.0)
                 )
             )
-            emergency_clearance_bonus = 0.99 if not metrics.emergency_vehicle_active else 0.01
+            emergency_clearance_bonus = self._clamp(0.9 if not metrics.emergency_vehicle_active else 0.1)
             emergency_handling_score = (
                 emergency_pass_rate * 0.45
                 + emergency_wait_quality * 0.4
@@ -554,7 +554,7 @@ class TrafficControlEnvironment(Environment):
                 wait_pressures.append(0.0)
 
         if not direction_ratios:
-            return 0.99
+            return self._clamp(0.9)
 
         service_balance = max(direction_ratios) - min(direction_ratios)
         wait_balance = max(wait_pressures) - min(wait_pressures) if wait_pressures else 0.0
@@ -579,7 +579,10 @@ class TrafficControlEnvironment(Environment):
         return counts
 
     def _clamp(self, value: float, low: float = 0.0, high: float = 1.0) -> float:
-        _EPS = 1e-3
+        import math
+        _EPS = 1e-2
+        if math.isnan(value):
+            return 0.5
         clamped = max(low, min(value, high))
         # Ensure scores are strictly within (0, 1) – never exactly 0.0 or 1.0
         if clamped <= 0.0:
