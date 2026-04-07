@@ -514,10 +514,13 @@ class TrafficControlEnvironment(Environment):
             weight_sum += weight
 
         final_score = self._clamp(weighted_total / weight_sum if weight_sum else 0.0)
-        return {
+
+        # Ensure every returned score is strictly within (0, 1)
+        all_scores = {
             **component_scores,
             "final_score": final_score,
         }
+        return {k: self._clamp(v) for k, v in all_scores.items()}
 
     def _count_emergency_passed(self) -> int:
         total_emergency = self._total_scheduled_emergency_vehicles()
